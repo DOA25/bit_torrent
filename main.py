@@ -4,6 +4,7 @@ import socket
 import aiohttp
 from aiohttp import web
 import bencode
+from task import peer
 from urllib import parse
 import random
 import struct
@@ -39,8 +40,6 @@ async def getClients(session,meta, peer_id):
         return await res.read()
 
 
-
-
 async def generatePeerID():
     sha = hashlib.sha1()
     stime = bytes(random.randint(1, 9999))
@@ -60,16 +59,26 @@ async def decodePeerBinary(peerList):
         peers.append([ip, binPeer])
         i = i+2
     print(peers)
+    return peers
 
 async def breakPieces(metainfo):
     pecies = []
     offset = 0
     print(metainfo)
-    sha1 = b''
     while (offset<len(metainfo)):
         pecies.append(bin.hexlify(metainfo[offset: offset + 19]))
         offset = offset + 20
     print(pecies)
+    print(len(pecies))
+    return pecies
+
+
+async def downloadFile(peerList, pieces):
+    downloadedPieces = []
+    while len(pieces) != 0:
+
+
+
 
 
 
@@ -78,17 +87,23 @@ async def breakPieces(metainfo):
 
 
 async def main():
-    f = open("torrentFiles/[HorribleSubs] Mob Psycho 100 S2 - 01 [1080p].mkv (1).torrent",'rb')
+    f = open("torrentFiles/Mob_Psycho_100_S2-01.torrent", 'rb')
     peerid = await generatePeerID()
     torrent_file = f.read()
     f.close()
     torrent_file = bencode.bdecode(torrent_file)
     print(torrent_file)
     print(torrent_file['info']['length'])
-    await breakPieces(torrent_file['info']['pieces'])
-    #async with aiohttp.ClientSession() as session:
-     #   response = bencode.bdecode(await getClients(session, torrent_file, peerid))
-      #  peer_list = await decodePeerBinary(response['peers'])
+    peer_list = []
+    async with aiohttp.ClientSession() as session:
+        response = bencode.bdecode(await getClients(session, torrent_file, peerid))
+        peer_list = await decodePeerBinary(response['peers'])
+    tasks = []
+    for i in peer_list:
+        tasks.append(peer(i[0], i[1]))
+    print(tasks)
+
+
 
 
 
