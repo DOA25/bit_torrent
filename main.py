@@ -68,22 +68,29 @@ async def breakPieces(metainfo):
     while (offset<len(metainfo)):
         pecies.append(bin.hexlify(metainfo[offset: offset + 19]))
         offset = offset + 20
-    print(pecies)
-    print(len(pecies))
     return pecies
 
 
-async def downloadFile(peerList, pieces):
+async def downloadFile(torrent_file, peerList, peerid):
+    fileInfo = torrent_file['info']
+    jobs = await createTasks(peerList, await breakPieces(fileInfo['pieces']))
+    f= open(fileInfo['name'], "wb")
     downloadedPieces = []
-    while len(pieces) != 0:
+    for i in jobs:
+        print("{}:{} {}".format(i.ip,i.port, i.piece))
+
+async def requestPeerList(torrent_file, peerid):
+    async with aiohttp.ClientSession() as session:
+        response = bencode.bdecode(await getClients(session, torrent_file, peerid))
+        return response
 
 
-
-
-
-
-#async def createTasks(peerList, peices):
-
+async def createTasks(peerList, peices):
+    jobs = []
+    for i in peerList:
+        for piece in peices:
+            jobs.append(peer(i[0], i[1], piece))
+    return jobs
 
 
 async def main():
@@ -92,17 +99,9 @@ async def main():
     torrent_file = f.read()
     f.close()
     torrent_file = bencode.bdecode(torrent_file)
-    print(torrent_file)
-    print(torrent_file['info']['length'])
-    peer_list = []
-    async with aiohttp.ClientSession() as session:
-        response = bencode.bdecode(await getClients(session, torrent_file, peerid))
-        peer_list = await decodePeerBinary(response['peers'])
-    tasks = []
-    for i in peer_list:
-        tasks.append(peer(i[0], i[1]))
-    print(tasks)
-
+    response = await requestPeerList(torrent_file, peerid)
+    peer_list = await decodePeerBinary(response['peers'])
+    await downloadFile(torrent_file, peer_list, peerid)
 
 
 
